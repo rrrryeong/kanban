@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>Kanban</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="board.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="app-bar" data-app-bar>
+    <span class="material-symbols-rounded app-bar__icon" aria-hidden="true">view_kanban</span>
+    <h1 class="app-bar__title">Kanban</h1>
+  </header>
+
+  <main class="board" data-board>
+    <section class="column" data-column="todo" aria-labelledby="column-title-todo">
+      <header class="column__header">
+        <h2 class="column__title" id="column-title-todo">To-Do</h2>
+        <span class="column__count" data-count aria-label="카드 0개">0</span>
+      </header>
+      <ul class="column__list" data-list aria-labelledby="column-title-todo"></ul>
+      <p class="column__empty" data-empty>카드를 여기로 끌어오세요</p>
+      <button type="button" class="btn-text column__add" data-action="add" data-column="todo">
+        <span class="material-symbols-rounded" aria-hidden="true">add</span>카드 추가
+      </button>
+    </section>
+
+    <section class="column" data-column="in-progress" aria-labelledby="column-title-in-progress">
+      <header class="column__header">
+        <h2 class="column__title" id="column-title-in-progress">In-Progress</h2>
+        <span class="column__count" data-count aria-label="카드 0개">0</span>
+      </header>
+      <ul class="column__list" data-list aria-labelledby="column-title-in-progress"></ul>
+      <p class="column__empty" data-empty>카드를 여기로 끌어오세요</p>
+      <button type="button" class="btn-text column__add" data-action="add" data-column="in-progress">
+        <span class="material-symbols-rounded" aria-hidden="true">add</span>카드 추가
+      </button>
+    </section>
+
+    <section class="column" data-column="done" aria-labelledby="column-title-done">
+      <header class="column__header">
+        <h2 class="column__title" id="column-title-done">Done</h2>
+        <span class="column__count" data-count aria-label="카드 0개">0</span>
+      </header>
+      <ul class="column__list" data-list aria-labelledby="column-title-done"></ul>
+      <p class="column__empty" data-empty>카드를 여기로 끌어오세요</p>
+      <button type="button" class="btn-text column__add" data-action="add" data-column="done">
+        <span class="material-symbols-rounded" aria-hidden="true">add</span>카드 추가
+      </button>
+    </section>
+  </main>
+
+  <button type="button" class="fab" data-action="add" data-column="todo" aria-label="To-Do에 카드 추가">
+    <span class="material-symbols-rounded" aria-hidden="true">add</span>
+  </button>
+
+  <!-- 카드 메뉴 (카드마다 위치를 옮겨 재사용) -->
+  <div class="menu" data-menu role="menu" aria-label="카드 메뉴" hidden>
+    <button type="button" class="menu__item" role="menuitem" data-menu-action="edit">
+      <span class="material-symbols-rounded" aria-hidden="true">edit</span>편집
+    </button>
+    <button type="button" class="menu__item" role="menuitem" data-menu-action="prev">
+      <span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>이전 컬럼으로 이동
+    </button>
+    <button type="button" class="menu__item" role="menuitem" data-menu-action="next">
+      <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span>다음 컬럼으로 이동
+    </button>
+    <button type="button" class="menu__item menu__item--danger" role="menuitem" data-menu-action="delete">
+      <span class="material-symbols-rounded" aria-hidden="true">delete</span>삭제
+    </button>
+  </div>
+
+  <!-- 카드 추가/편집 다이얼로그 -->
+  <dialog class="dialog" data-card-dialog aria-labelledby="card-dialog-title">
+    <form class="dialog__form" data-card-form novalidate>
+      <h2 class="dialog__title" id="card-dialog-title" data-dialog-title>새 카드</h2>
+
+      <div class="text-field" data-field="title">
+        <input class="text-field__input" id="card-title" name="title" type="text" maxlength="100"
+               placeholder=" " autocomplete="off" required aria-describedby="card-title-error">
+        <label class="text-field__label" for="card-title">제목</label>
+        <div class="text-field__support">
+          <span class="text-field__error" id="card-title-error" data-error="title" aria-live="polite"></span>
+          <span class="text-field__counter" data-counter="title">0/100</span>
+        </div>
+      </div>
+
+      <div class="text-field text-field--textarea" data-field="description">
+        <textarea class="text-field__input" id="card-description" name="description" rows="4" maxlength="1000"
+                  placeholder=" " aria-describedby="card-description-error"></textarea>
+        <label class="text-field__label" for="card-description">설명 (선택)</label>
+        <div class="text-field__support">
+          <span class="text-field__error" id="card-description-error" data-error="description" aria-live="polite"></span>
+          <span class="text-field__counter" data-counter="description">0/1000</span>
+        </div>
+      </div>
+
+      <div class="dialog__actions">
+        <button type="button" class="btn-text" data-action="cancel">취소</button>
+        <button type="submit" class="btn-filled">저장</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 삭제 확인 다이얼로그 -->
+  <dialog class="dialog dialog--confirm" data-confirm-dialog aria-labelledby="confirm-title" aria-describedby="confirm-message">
+    <h2 class="dialog__title" id="confirm-title">카드 삭제</h2>
+    <p class="dialog__message" id="confirm-message" data-confirm-message>이 카드를 삭제할까요?</p>
+    <div class="dialog__actions">
+      <button type="button" class="btn-text" data-action="cancel">취소</button>
+      <button type="button" class="btn-filled btn-filled--danger" data-action="confirm-delete">삭제</button>
+    </div>
+  </dialog>
+
+  <div class="sr-only" data-live aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>
