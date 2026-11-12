@@ -126,3 +126,20 @@
 - [x] T10-2 `README.md`에 E2E 실행 방법(`npm run test:e2e`, `npx playwright show-report`)과 사전 준비(Phase 7)를 적는다.
 - [x] T10-3 최종 보고에 Jest와 E2E의 통과 수를 각각 적고, `WORKFLOW.md`를 업데이트한다.
 - [x] ✅ 최종 `npm run test:all` 모두 통과
+
+## Phase 11. Supabase 전환
+- [x] 설계 문서 갱신
+- [x] Auth·저장 서비스 및 SQL/RLS 테스트 Red
+- [x] 스키마·RPC·RLS 구현 (사용자가 실제 프로젝트에 적용)
+- [x] 가입·확인·OAuth·로그인·복구·로그아웃 UI와 SDK 연동 코드
+- [x] 비동기 저장·충돌·계정 전환·로컬 이전
+- [x] Jest·Playwright 전체 Green 및 Refactor 검증
+- [x] 실제 DB 통합 검증 (SQL Editor PASS 결과 사용자 확인, 익명 RPC 차단 직접 확인)
+- [ ] 개발/운영 Supabase 프로젝트 분리 확정
+- [ ] Google·GitHub OAuth 공급자 설정
+- [ ] 사용자 지정 SMTP, 비밀번호 최소 12자 및 운영 복귀 URL 설정 확인
+- [ ] 실제 OAuth·메일 수신·복구·Pages 복귀·다른 기기 조회 확인
+
+자동 E2E는 공급자 대역과 테스트 서버 저장소를 사용하므로 실제 OAuth/메일/기기 간 인증 확인을 대신하지 않는다. 실제 SDK의 미인증 모바일 로그인 화면과 보드 숨김, 브라우저 오류 없음은 확인했다.
+
+최종 자동 실행 결과: `npm run test:all` exit 0. Jest 133개(유닛·DOM 127, DB 6), E2E 68개 통과·2개 기기별 건너뜀. Red와 Green 및 Refactor 후 전체 재검증을 확인했다. 실제 Supabase SQL 검증은 사용자 전달 PASS 결과로 기록했다.

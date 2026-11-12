@@ -13,6 +13,30 @@ const LABELS = { todo: 'To-Do', 'in-progress': 'In-Progress', done: 'Done' };
 const test = base.test.extend({
   page: async ({ page }, use) => {
     await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.abort());
+    const remote = new Map();
+    let writes=0;
+    await page.context().route('**/vendor/supabase.js', route => route.fulfill({path:require('path').join(__dirname,'fake-sdk.js'),contentType:'text/javascript'}));
+    await page.context().route('**/__kanban_test', async route => {
+      const {name,args,user,seed,fail,loadFail}=route.request().postDataJSON();
+      let row=remote.get(user);
+      let result;
+      if(!user) result={error:{message:'AUTH_REQUIRED'}};
+      else if(name==='load_board' && loadFail) result={error:{message:'network'}};
+      else if(name==='load_board') {
+        if(!row && seed) {
+          try {row={data:JSON.parse(seed),revision:0};remote.set(user,row);}catch(_){result={error:{message:'INVALID_BOARD'}};}
+        }
+        result ||= {data:row?[row]:[]};
+      } else if(name==='create_board') {
+        row ||= {data:JSON.parse(boardJson({})),revision:0};remote.set(user,row);result={data:row};
+      } else if(fail) result={error:{message:'network'}};
+      else if(!row || args.p_revision!==row.revision) result={error:{message:'BOARD_CONFLICT'}};
+      else if(name==='import_board' && Object.keys(row.data.cards).length) result={error:{message:'BOARD_NOT_EMPTY'}};
+      else {row={data:args.p_data,revision:row.revision+1};remote.set(user,row);writes++;result={data:row};}
+      await route.fulfill({json:result});
+    });
+    page.__remote=remote;
+    page.__writes=()=>writes;
     await use(page);
   },
 });
@@ -38,31 +62,13 @@ function boardJson(layout) {
  */
 async function seedBoard(page, value) {
   const text = typeof value === 'string' ? value : boardJson(value);
-  await page.addInitScript(([key, data]) => {
-    if (sessionStorage.getItem('__seeded')) return;
-    sessionStorage.setItem('__seeded', '1');
-    localStorage.setItem(key, data);
-  }, [STORAGE_KEY, text]);
+  await page.addInitScript(data => { window.__seedBoard=data; }, text);
 }
 
-/** 저장된 보드를 읽는다. 없으면 null. */
-async function readBoard(page) {
-  const text = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY);
-  return text ? JSON.parse(text) : null;
-}
+/** 브라우저 캐시 대신 테스트 서버의 저장 상태를 읽는다. */
+async function readBoard(page) { return page.__remote.get('member')?.data || null; }
 
-/** localStorage.setItem 호출 횟수를 세도록 계측한다(goto 전에 호출). */
-async function countStorageWrites(page) {
-  await page.addInitScript(() => {
-    const original = Storage.prototype.setItem;
-    window.__writes = 0;
-    Storage.prototype.setItem = function setItem(key, value) {
-      if (key === 'kanban.board') window.__writes += 1;
-      return original.call(this, key, value);
-    };
-  });
-  return () => page.evaluate(() => window.__writes);
-}
+async function countStorageWrites(page) { return () => page.__writes(); }
 
 /** @param {import('@playwright/test').Page} page */
 const column = (page, col) => page.locator(`.column[data-column="${col}"]`);
@@ -78,6 +84,8 @@ const descField = (page) => page.getByLabel('설명 (선택)');
 
 /** 컬럼의 카드 id 순서 */
 async function cardIds(page, col) {
+  await expect(page.locator('[data-workspace]')).toBeVisible();
+  await expect(page.locator('[data-board]')).not.toHaveAttribute('inert', '');
   return cards(page, col).evaluateAll((els) => els.map((el) => el.dataset.cardId));
 }
 

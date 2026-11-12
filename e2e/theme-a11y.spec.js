@@ -17,6 +17,7 @@ test.describe('E2E-10 테마와 접근성', () => {
 
   test('키보드 포커스에는 3px solid 포커스 링이 보인다', async ({ page }) => {
     await page.goto('/');
+    await page.getByRole('button', {name:'최신 보드 불러오기'}).focus();
     await page.keyboard.press('Tab');
     const focused = column(page, 'todo').getByRole('button', { name: '카드 추가' });
     await expect(focused).toBeFocused();

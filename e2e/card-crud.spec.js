@@ -59,7 +59,7 @@ test.describe('E2E-02 카드 추가', () => {
     await expect(cardDialog(page)).toBeHidden();
 
     await expect(cards(page, 'todo')).toHaveCount(0);
-    expect(await readBoard(page)).toBeNull();
+    expect((await readBoard(page)).cards).toEqual({});
   });
 
   test('배경을 클릭하면 닫힌다 (데스크톱)', async ({ page, isMobile }) => {

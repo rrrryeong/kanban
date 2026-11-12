@@ -1,4 +1,4 @@
-/* 칸반보드 화면 계층: 렌더링, 이벤트, 포인터 드래그, localStorage 저장.
+/* 칸반보드 화면 계층: 렌더링, 이벤트, 포인터 드래그, 비동기 원격 저장.
    상태 변경은 모두 board.js(KanbanBoard)의 순수 함수로 한다. TRD.md 참고. */
 (function (global, factory) {
   'use strict';
@@ -9,7 +9,7 @@
     module.exports = api;
   } else {
     global.KanbanApp = api;
-    const start = () => api.initApp();
+    const start = () => {}; // bootstrap.js가 인증 후 초기화한다.
     if (global.document && global.document.readyState === 'loading') {
       global.document.addEventListener('DOMContentLoaded', start);
     } else if (global.document) {
@@ -52,7 +52,7 @@
     }
   }
 
-  function initApp({ root = document, storage = defaultStorage() } = {}) {
+  function initApp({ root = document, storage = defaultStorage(), initialBoard, persist, onError = () => {}, onBusy = () => {} } = {}) {
     const doc = root.ownerDocument || root;
     const win = doc.defaultView || (typeof window !== 'undefined' ? window : null);
 
@@ -80,7 +80,9 @@
       };
     });
 
-    let state = load();
+    let state = initialBoard || load();
+    let busy = false;
+    let destroyed = false;
     let dialogContext = null; // { mode: 'add', column } | { mode: 'edit', cardId }
     let pendingDeleteId = null;
     let menuCardId = null;
@@ -108,12 +110,36 @@
       }
     }
 
-    function commit(next) {
-      if (next === state) return false;
-      state = next;
-      save();
-      render();
-      return true;
+    function setBusy(value) {
+      busy = value;
+      els.board.inert = value;
+      els.cardDialog.inert = value;
+      els.confirmDialog.inert = value;
+      root.querySelectorAll('[data-action="add"]').forEach(el => { el.disabled = value; });
+      onBusy(value);
+    }
+
+    function commit(next, done = () => {}) {
+      if (busy || destroyed) return false;
+      if (next === state) { done(); return false; }
+      if (!persist) {
+        state = next; save(); render(); done(); return true;
+      }
+      setBusy(true);
+      const pending = (async () => {
+        try {
+          await persist(next);
+          if (destroyed) return false;
+          state = next; render(); setBusy(false); done(); return true;
+        } catch (error) {
+          if (!destroyed) {
+            announce('저장하지 못했습니다. 입력을 유지했습니다. 다시 시도해 주세요.');
+            onError(error, next);
+          }
+          return false;
+        } finally { if (!destroyed) setBusy(false); }
+      })();
+      return pending;
     }
 
     function announce(message) {
@@ -263,14 +289,15 @@
         const list = next.columns[ctx.column];
         cardId = list[list.length - 1];
       }
-      closeDialog({ restoreFocus: false });
-      commit(next);
-      const title = state.cards[cardId].title;
-      announce(ctx.mode === 'add'
-        ? `'${title}' 카드를 ${Board.COLUMN_LABELS[ctx.column]}에 추가했습니다.`
-        : `'${title}' 카드를 수정했습니다.`);
-      const el = cardEl(cardId);
-      if (el) el.focus();
+      commit(next, () => {
+        closeDialog({ restoreFocus: false });
+        const title = state.cards[cardId].title;
+        announce(ctx.mode === 'add'
+          ? `'${title}' 카드를 ${Board.COLUMN_LABELS[ctx.column]}에 추가했습니다.`
+          : `'${title}' 카드를 수정했습니다.`);
+        const el = cardEl(cardId);
+        if (el) el.focus();
+      });
     }
 
     function openDeleteConfirm(cardId) {
@@ -288,9 +315,10 @@
         return;
       }
       const title = state.cards[cardId].title;
-      closeDialog({ restoreFocus: false });
-      commit(Board.deleteCard(state, cardId));
-      announce(`'${title}' 카드를 삭제했습니다.`);
+      commit(Board.deleteCard(state, cardId), () => {
+        closeDialog({ restoreFocus: false });
+        announce(`'${title}' 카드를 삭제했습니다.`);
+      });
     }
 
     /* ---------- 카드 메뉴 ---------- */
@@ -341,10 +369,9 @@
         if (anchor) anchor.focus();
         openCardDialog({ mode: 'edit', cardId });
       } else if (action === 'prev' || action === 'next') {
-        if (commit(Board.moveCardBy(state, cardId, action === 'next' ? 1 : -1))) {
-          announceMove(cardId);
-        }
-        focusCardMenu(cardId);
+        commit(Board.moveCardBy(state, cardId, action === 'next' ? 1 : -1), () => {
+          announceMove(cardId); focusCardMenu(cardId);
+        });
       } else if (action === 'delete') {
         focusCardMenu(cardId);
         openDeleteConfirm(cardId);
@@ -369,6 +396,7 @@
 
     /* ---------- 드래그 (Pointer Events) ---------- */
     function onPointerDown(event) {
+      if (busy || destroyed) { if (event.cancelable) event.preventDefault(); return; }
       if (pointer || openDialogEl) return;
       if (event.button !== undefined && event.button !== 0) return;
       const target = event.target;
@@ -561,8 +589,8 @@
     function finishDrag() {
       const { cardId, target } = pointer;
       cleanupDrag();
-      if (target && commit(Board.moveCard(state, cardId, target.column, target.index))) {
-        announceMove(cardId);
+      if (target) {
+        commit(Board.moveCard(state, cardId, target.column, target.index), () => announceMove(cardId));
       } else {
         render();
       }
@@ -603,6 +631,7 @@
 
     /* ---------- 이벤트 ---------- */
     function onClick(event) {
+      if (busy || destroyed) { if (event.cancelable) event.preventDefault(); return; }
       if (suppressClick) {
         suppressClick = false;
         event.preventDefault();
@@ -650,6 +679,7 @@
     }
 
     function onKeyDown(event) {
+      if (busy || destroyed) { if (event.cancelable) event.preventDefault(); return; }
       const { key } = event;
 
       if (pointer && key === 'Escape') {
@@ -696,6 +726,7 @@
     }
 
     function onSubmit(event) {
+      if (busy || destroyed) { if (event.cancelable) event.preventDefault(); return; }
       if (event.target !== els.cardForm) return;
       event.preventDefault();
       submitCardDialog();
@@ -737,7 +768,17 @@
 
     return {
       getState: () => state,
+      isEditing: () => Boolean(openDialogEl || pointer || busy),
       destroy() {
+        destroyed = true;
+        closeDialog({ restoreFocus: false });
+        closeMenu();
+        if (persist) {
+          state = Board.createBoard(); render(); setBusy(false);
+          els.titleInput.value = ''; els.descInput.value = '';
+          els.dialogTitle.textContent = '새 카드'; els.confirmMessage.textContent = '이 카드를 삭제할까요?';
+          announce(''); updateCounters();
+        }
         if (pointer) cleanupDrag();
         listeners.forEach(([target, type, fn, opts]) => target.removeEventListener(type, fn, opts));
       },

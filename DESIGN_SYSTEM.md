@@ -177,3 +177,6 @@ Playwright(`e2e/responsive.spec.js`, `e2e/theme-a11y.spec.js`)로 다음 기준�
 | 포커스 링 | 키보드(Tab)로 포커스한 버튼의 `outline-style`이 `solid`이고 `outline-width`가 3px이다 |
 | 모션 줄이기 | `emulateMedia({ reducedMotion: 'reduce' })`일 때 카드의 `transition-duration`이 `0s`다 |
 | 컬럼 액센트 | To-Do, In-Progress, Done 카드의 왼쪽 테두리 색이 각각 `--kb-todo`, `--kb-progress`, `--kb-done`이다 |
+
+## 인증·원격 저장 UI
+M3 토큰으로 중앙 인증 패널, 라벨이 있는 이메일/비밀번호/확인 필드, Google/GitHub 버튼, 가입·복구·재발송을 제공한다. 상태는 role=status/alert로 안내한다. 초기 로딩은 보드를 숨긴다. 저장 중 조작 차단과 상태 문구, 실패 재시도/최신 불러오기, 이전 데이터 미리보기/확인을 제공한다. 모바일 패널은 화면 폭 안에 배치하고 키보드 포커스를 유지한다.

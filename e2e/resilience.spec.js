@@ -5,30 +5,20 @@ const {
 } = require('./helpers');
 
 test.describe('E2E-08 예외 흐름', () => {
-  test('손상된 저장 데이터면 빈 보드로 시작하고, 다음 저장 때 덮어쓴다', async ({ page }) => {
+  test('손상된 서버 데이터는 빈 보드로 덮어쓰지 않고 조회 오류를 표시한다', async ({ page }) => {
     await seedBoard(page, '{"version":1,"cards":');
     await page.goto('/');
-    for (const col of COLUMNS) await expect(countBadge(page, col)).toHaveText('0');
-    await addCard(page, 'todo', '복구 후 첫 카드');
-    const saved = await readBoard(page);
-    expect(saved.version).toBe(1);
-    expect(saved.columns.todo).toHaveLength(1);
+    await expect(page.locator('[data-cloud-status]')).toContainText('조회 실패');
+    await expect(page.locator('[data-workspace]')).toBeHidden();
   });
 
-  test('localStorage 쓰기가 실패해도 화면은 동작한다(새로고침하면 사라짐)', async ({ page }) => {
-    await page.addInitScript(() => {
-      Storage.prototype.setItem = function setItem() {
-        throw new DOMException('quota', 'QuotaExceededError');
-      };
-    });
-    const errors = [];
-    page.on('pageerror', (e) => errors.push(e));
+  test('서버 조회가 실패하면 재시도로 복구한다', async ({ page }) => {
+    await page.addInitScript(()=>{window.__failLoad=true;});
     await page.goto('/');
-    await addCard(page, 'todo', '메모리 카드');
-    await expect(cards(page, 'todo')).toHaveCount(1);
-    await page.reload();
-    await expect(cards(page, 'todo')).toHaveCount(0);
-    expect(errors).toEqual([]);
+    await expect(page.locator('[data-cloud-status]')).toContainText('조회 실패');
+    await page.evaluate(()=>{window.__failLoad=false;});
+    await page.getByRole('button',{name:'최신 보드 불러오기'}).click();
+    await expect(page.locator('[data-workspace]')).toBeVisible();
   });
 
   test('같은 자리에 놓으면 저장하지 않는다', async ({ page }) => {

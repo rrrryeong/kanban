@@ -11,6 +11,10 @@
   <link rel="stylesheet" href="style.css">
   <script src="board.js" defer></script>
   <script src="app.js" defer></script>
+  <script src="vendor/supabase.js" defer></script>
+  <script src="config.js" defer></script>
+  <script src="services.js" defer></script>
+  <script src="bootstrap.js" defer></script>
 </head>
 <body>
   <header class="app-bar" data-app-bar>
@@ -18,6 +22,35 @@
     <h1 class="app-bar__title">Kanban</h1>
   </header>
 
+  <section class="auth-panel" data-auth-panel aria-labelledby="auth-title">
+    <h2 id="auth-title" data-auth-title>로그인</h2>
+    <div data-oauth-buttons><button type="button" class="btn-filled" data-provider="google">Google로 계속</button>
+    <button type="button" class="btn-filled" data-provider="github">GitHub로 계속</button></div>
+    <form data-auth-form novalidate>
+      <label data-email-field>이메일<input data-email type="email" autocomplete="email" required></label>
+      <label data-password-field>비밀번호<input data-password type="password" autocomplete="current-password" required></label>
+      <label data-confirm-field hidden>비밀번호 확인<input data-confirm type="password" autocomplete="new-password"></label>
+      <button class="btn-filled" data-auth-submit type="submit">로그인</button>
+    </form>
+    <nav aria-label="인증 메뉴">
+      <button class="btn-text" type="button" data-auth-mode="login">로그인 화면</button>
+      <button class="btn-text" type="button" data-auth-mode="signup">회원가입</button>
+      <button class="btn-text" type="button" data-auth-mode="reset">비밀번호 찾기</button>
+      <button class="btn-text" type="button" data-resend>확인 메일 재발송</button>
+    </nav>
+    <p role="status" data-auth-status>인증 상태를 확인하는 중입니다…</p>
+    <p>메일 링크는 요청한 브라우저에서 열어 주세요. 가입 비밀번호는 12자 이상입니다.</p>
+  </section>
+  <section class="cloud-panel" data-account hidden>
+    <span data-user></span><button type="button" class="btn-text" data-logout>로그아웃</button>
+    <button type="button" class="btn-text" data-reload-board>최신 보드 불러오기</button>
+  </section>
+  <p class="cloud-panel" role="status" data-cloud-status></p>
+  <section class="cloud-panel" data-draft hidden><h2>저장하지 못한 초안</h2><p>아래 내용을 보관하고 최신 보드를 불러온 뒤 변경을 다시 적용해 주세요.</p><pre tabindex="0" data-draft-text></pre></section>
+  <section class="cloud-panel" data-legacy hidden><h2>이 브라우저의 기존 보드 가져오기</h2><p>현재 계정의 빈 보드로만 가져옵니다. 아래 내용을 확인해 주세요.</p>
+    <pre tabindex="0" data-legacy-preview></pre><button type="button" class="btn-filled" data-import>확인하고 가져오기</button><button type="button" class="btn-text" data-skip-import>나중에</button>
+  </section>
+  <div data-workspace hidden>
   <main class="board" data-board>
     <section class="column" data-column="todo" aria-labelledby="column-title-todo">
       <header class="column__header">
@@ -59,6 +92,8 @@
   <button type="button" class="fab" data-action="add" data-column="todo" aria-label="To-Do에 카드 추가">
     <span class="material-symbols-rounded" aria-hidden="true">add</span>
   </button>
+
+  </div>
 
   <!-- 카드 메뉴 (카드마다 위치를 옮겨 재사용) -->
   <div class="menu" data-menu role="menu" aria-label="카드 메뉴" hidden>

@@ -2,9 +2,68 @@
 
 GitHub 계정 `rrrryeong`, 저장소 이름 `kanban`, macOS 터미널을 기준으로 설명합니다. 저장소 이름을 바꾸면 아래 원격 주소와 배포 URL의 `kanban`도 바꾸세요. 이 문서는 실행 절차만 안내하며, 저장소 생성·SSH 설정·커밋·push·배포를 실제로 수행한 상태는 아닙니다.
 
+
+## Supabase 설정 — Pages 공개 전 필수
+
+### 프로젝트 및 DB
+
+- 개발/테스트 프로젝트와 운영 프로젝트를 별도로 구성합니다. 현재 config.js는 사용자가 제공한 `https://rcyhfsenjctcijwytfsq.supabase.co`를 가리킵니다. 운영 전 환경 구분을 확정하세요.
+- Project Settings → API에서 프로젝트 URL과 publishable key를 확인해 `config.js`에 넣습니다. 이 파일은 공개됩니다. secret/service_role·OAuth secret·SMTP 비밀번호를 넣지 않습니다.
+- SQL Editor에서 `supabase/migrations/202611120001_boards.sql` 전체를 **최초 한 번** 실행합니다. 이미 적용했다면 재실행하지 않습니다. 후속 변경은 새 마이그레이션으로 적용합니다.
+- 검증용 `supabase/tests/boards.sql`은 별도 쿼리로 실행합니다. 마지막 PASS 결과를 확인하세요. 테스트 사용자·보드는 ROLLBACK으로 제거됩니다.
+
+### 복귀 URL
+
+Authentication → URL Configuration:
+
+| 설정 | 값 |
+|---|---|
+| Site URL | `https://rrrryeong.github.io/kanban/` |
+| 운영 Redirect URL | `https://rrrryeong.github.io/kanban/` |
+| 개발 Redirect URL | `http://localhost:4173/` |
+| 공급자 콜백 URL | `https://rcyhfsenjctcijwytfsq.supabase.co/auth/v1/callback` |
+
+개발/운영 프로젝트를 나누면 각 프로젝트의 콜백을 해당 OAuth 앱에 등록합니다. 앱은 현재 origin+pathname으로 복귀하며, Pages의 `/kanban/`를 유지합니다. 개발 시 정확히 위 주소로 접속하세요. `file://`와 허용 목록에 없는 임의 주소는 사용하지 않습니다. [Redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls)
+
+### Google
+
+1. Google Cloud Console에서 프로젝트와 OAuth 동의 화면을 구성합니다. 테스트 상태라면 테스트 사용자를 등록합니다.
+2. Web application OAuth 클라이언트를 만듭니다. Authorized JavaScript origins에는 운영 `https://rrrryeong.github.io`와 개발 `http://localhost:4173`을, Authorized redirect URIs에는 위 Supabase 콜백을 등록합니다.
+3. Supabase Authentication → Sign In / Providers → Google에 Client ID·Client Secret을 입력하고 활성화합니다. 비밀 값은 대시보드에만 저장합니다.
+4. Google로 계속 → 동의 → Pages 복귀 → 개인 보드 조회를 확인합니다.
+
+[Google 공식 연동 안내](https://supabase.com/docs/guides/auth/social-sign-in/auth-google)
+
+### GitHub
+
+1. GitHub → Settings → Developer settings → OAuth Apps → New OAuth App을 엽니다.
+2. Homepage URL은 운영 Pages 주소, Authorization callback URL은 위 Supabase 콜백으로 지정합니다.
+3. Client ID와 생성한 Client Secret을 Supabase의 GitHub 공급자 설정에 저장하고 활성화합니다.
+4. GitHub로 계속 → 동의 → Pages 복귀를 확인합니다. 앱 인증은 OAuth이며 저장소 push에 사용하는 SSH 인증과 별개입니다.
+
+[GitHub 공식 연동 안내](https://supabase.com/docs/guides/auth/social-sign-in/auth-github)
+
+### 이메일 및 SMTP
+
+1. Email 공급자의 가입과 Confirm email을 활성화하고 최소 비밀번호 길이를 **12**로 설정합니다.
+2. Authentication → Email/SMTP 설정에서 본인 SMTP 제공자의 호스트·포트·인증 정보·발신 주소를 등록합니다. 실제 메일 서비스 계정과 발신 도메인 인증이 필요합니다.
+3. 메일 템플릿은 기본 ConfirmationURL을 사용하고, 링크 추적을 끕니다. 확인·복구 메일이 허용된 앱 주소로 돌아오는지 확인합니다.
+4. 신규 가입 → 확인 메일 → 같은 브라우저에서 확인 → 로그인, 확인 메일 재발송, 비밀번호 찾기 → 새 비밀번호 → 재로그인을 검증합니다.
+
+기본 SMTP는 일반 사용자 대상 운영 발송용으로 사용할 수 없으므로 사용자 지정 SMTP를 설정해야 합니다. PKCE 메일 링크는 요청한 브라우저에서 완료합니다. 만료·다른 브라우저 오류 시 원래 브라우저에서 새 링크를 요청합니다. [SMTP 공식 안내](https://supabase.com/docs/guides/auth/auth-smtp)
+
+### 배포 전 검증
+
+```bash
+npm run test:all
+npm run check:supabase
+```
+
+check:supabase는 공급자 활성화와 **미인증** RPC 차단만 확인합니다. 실제 두 계정 격리는 SQL 테스트와 로그인한 브라우저에서 별도로 검증합니다. 개발과 운영에서 Google/GitHub/메일 인증, 다른 기기 보드 조회, 로그아웃 시 화면 비움, 충돌 처리, 모바일 동작을 확인합니다. 비밀 키가 클라이언트 번들에 없고 RLS가 적용되어야 합니다. [API 키와 RLS](https://supabase.com/docs/guides/getting-started/api-keys)
+
 ## 1. 배포 구조
 
-이 앱은 `index.html`, `style.css`, `board.js`, `app.js`로 동작하는 정적 사이트입니다. 빌드 스크립트나 별도 서버가 필요하지 않고, CSS와 JavaScript 경로도 상대 경로이므로 `/kanban/` 아래에서 사용할 수 있습니다.
+이 앱은 정적 HTML/CSS/JavaScript 프런트엔드와 Supabase Auth·PostgreSQL로 동작합니다. 빌드 스크립트나 별도 서버가 필요하지 않고, CSS와 JavaScript 경로도 상대 경로이므로 `/kanban/` 아래에서 사용할 수 있습니다.
 
 - 저장소: https://github.com/rrrryeong/kanban
 - SSH 원격 주소: `git@github.com:rrrryeong/kanban.git`
@@ -130,7 +189,7 @@ git remote set-url origin git@github.com:rrrryeong/kanban.git
 
 배포 예상 주소: [https://rrrryeong.github.io/kanban/](https://rrrryeong.github.io/kanban/)
 
-화면 표시, 카드 추가·편집·삭제·이동, 새로고침 후 저장 유지, 모바일 화면을 확인합니다. 데이터는 브라우저 `localStorage`의 `kanban.board` 키에 저장됩니다. 로컬에서 입력한 데이터는 배포 사이트로 자동 이전되지 않으며, 기기·브라우저 사이에서도 공유되지 않습니다. 같은 `https://rrrryeong.github.io` 출처에서 같은 저장 키를 사용하는 다른 앱이 있으면 데이터를 공유할 수 있습니다.
+화면 표시, 카드 추가·편집·삭제·이동, 새로고침 후 저장 유지, 모바일 화면을 확인합니다. 보드는 로그인한 계정의 Supabase DB에 저장되어 다른 기기에서도 조회할 수 있습니다. 기존 로컬 데이터는 미리보기와 확인 후 빈 클라우드 보드에만 가져옵니다. OAuth와 메일 복귀는 아래 Supabase 설정을 먼저 완료해야 합니다.
 
 ## 6. 이후 업데이트
 
@@ -139,7 +198,7 @@ git remote set-url origin git@github.com:rrrryeong/kanban.git
 ```bash
 npm run test:all
 git status --short
-git add index.html style.css board.js app.js
+git add index.html style.css board.js app.js services.js bootstrap.js config.js vendor package.json package-lock.json supabase
 git diff --cached
 git commit -m "Update kanban application"
 git push origin main

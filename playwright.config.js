@@ -25,7 +25,7 @@ module.exports = defineConfig({
     {
       name: 'mobile',
       use: { ...devices['Pixel 7'] },
-      testMatch: ['**/smoke.spec.js', '**/card-crud.spec.js', '**/drag-touch.spec.js', '**/responsive.spec.js'],
+      testMatch: ['**/smoke.spec.js', '**/card-crud.spec.js', '**/drag-touch.spec.js', '**/responsive.spec.js', '**/auth.spec.js'],
     },
   ],
   webServer: {
